@@ -117,8 +117,12 @@
     cursor:pointer;flex:none;display:grid;place-items:center;color:#fff;font-size:14px;margin-top:1px;transition:all .15s;}
   .chk.done{background:var(--sage);border-color:var(--sage);}
   .tbody{flex:1;min-width:0;cursor:pointer;}
+  .titlerow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
   .ttitle{font-weight:600;font-size:15.5px;word-break:break-word;}
   .task.done .ttitle{text-decoration:line-through;color:var(--ink-soft);}
+  .catpill{flex:none;}
+  .subcount{cursor:pointer;}
+  .subcount .cc{font-size:10px;opacity:.8;margin-left:1px;}
   .tdesc{font-size:13.5px;color:var(--ink-soft);margin-top:2px;word-break:break-word;white-space:pre-wrap;}
   .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px;}
   .tag{border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;}
@@ -152,13 +156,18 @@
   .subrow.done .stext{text-decoration:line-through;color:var(--ink-soft);}
 
   /* sous-tâches (éditeur) */
-  .subedit{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+  .subedit{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
   .subchk{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);
     cursor:pointer;flex:none;display:grid;place-items:center;color:#fff;font-size:13px;}
   .subchk.on{background:var(--sage);border-color:var(--sage);}
   .subin{flex:1;border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;
     padding:8px 10px;font-family:inherit;font-size:14px;outline:none;min-width:0;}
-  .subx{border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:15px;padding:4px 8px;flex:none;}
+  .submv{display:flex;flex-direction:column;gap:2px;flex:none;}
+  .submv button{border:1px solid var(--line);background:var(--white);color:var(--ink);width:24px;height:15px;
+    border-radius:6px;font-size:10px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;}
+  .submv button:disabled{opacity:.3;cursor:default;}
+  .submv button:active:not(:disabled){background:var(--paper-2);}
+  .subx{border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:15px;padding:4px 6px;flex:none;}
 
   /* ----- sheet (éditeur + réglages) ----- */
   .backdrop{position:fixed;inset:0;background:rgba(33,31,26,.42);z-index:40;opacity:0;
@@ -532,12 +541,14 @@ function taskHTML(t){
     const cls = t.done?'' : (n<0?'over':(n===0?'today':''));
     meta+=`<span class="tag due ${cls}">📅 ${fmtDue(t.due)}</span>`;
   }
-  if(cat) meta+=`<span class="tag" style="background:${cat.color}22;color:${cat.color}"><span class="swatch" style="background:${cat.color}"></span>${esc(cat.name)}</span>`;
   if(t.repeat) meta+=`<span class="tag rep">🔁 ${repeatLabel(t.repeat)}</span>`;
   const subs = t.subs||[];
-  if(subs.length) meta+=`<span class="tag due">☑ ${subs.filter(s=>s.done).length}/${subs.length}</span>`;
+  const collapsed = !!t.collapsed;
+  if(subs.length) meta+=`<span class="tag subcount" data-collapse="${t.id}">☑ ${subs.filter(s=>s.done).length}/${subs.length} <span class="cc">${collapsed?'▸':'▾'}</span></span>`;
   if(settings.showCreated) meta+=`<span class="added">${fmtAdded(t.created)}</span>`;
   const pr = settings.showPrio && t.prio ? PRIOS.find(p=>p.v===t.prio) : null;
+  // catégorie au bout du nom
+  const catPill = cat ? `<span class="tag catpill" style="background:${cat.color}22;color:${cat.color}"><span class="swatch" style="background:${cat.color}"></span>${esc(cat.name)}</span>` : '';
   // carte colorée (option)
   let cardStyle='';
   if(settings.colorCards){
@@ -546,12 +557,12 @@ function taskHTML(t){
     else { col = cat?cat.color:null; }
     if(col) cardStyle=` style="border-left:4px solid ${col};background:linear-gradient(0deg,${col}14,${col}14),var(--white)"`;
   }
-  const subsHTML = subs.length ? `<div class="subs">${subs.map(s=>`<div class="subrow ${s.done?'done':''}" data-subtoggle="${t.id}|${s.id}"><span class="sdot">${s.done?'✓':''}</span><span class="stext">${esc(s.t)}</span></div>`).join('')}</div>` : '';
+  const subsHTML = (subs.length && !collapsed) ? `<div class="subs">${subs.map(s=>`<div class="subrow ${s.done?'done':''}" data-subtoggle="${t.id}|${s.id}"><span class="sdot">${s.done?'✓':''}</span><span class="stext">${esc(s.t)}</span></div>`).join('')}</div>` : '';
   return `<div class="task ${t.done?'done':''}" data-id="${t.id}"${cardStyle}>
     <button class="chk ${t.done?'done':''}" data-chk="${t.id}">${t.done?'✓':''}</button>
     ${pr?`<span class="prio-dot" style="background:${pr.c}" title="Priorité ${pr.nm.toLowerCase()}"></span>`:''}
     <div class="tbody" data-edit="${t.id}">
-      <div class="ttitle">${esc(t.title)}</div>
+      <div class="titlerow"><span class="ttitle">${esc(t.title)}</span>${catPill}</div>
       ${settings.showDesc && t.desc?`<div class="tdesc">${esc(t.desc)}</div>`:''}
       ${meta?`<div class="meta">${meta}</div>`:''}
       ${subsHTML}
@@ -727,13 +738,21 @@ function renderEditFields(){
 }
 function renderSubs(){
   const box=document.getElementById('e-subs');
+  const last=draft.subs.length-1;
   box.innerHTML = draft.subs.map((s,i)=>`<div class="subedit">
       <button class="subchk ${s.done?'on':''}" data-sd="${i}">${s.done?'✓':''}</button>
       <input class="subin" data-st="${i}" value="${esc(s.t)}" placeholder="Sous-tâche">
+      <div class="submv">
+        <button data-su="${i}" ${i===0?'disabled':''}>↑</button>
+        <button data-sdn="${i}" ${i===last?'disabled':''}>↓</button>
+      </div>
       <button class="subx" data-sx="${i}">✕</button>
     </div>`).join('');
+  const move=(from,to)=>{ if(to<0||to>=draft.subs.length) return; const a=draft.subs; const t=a[from]; a[from]=a[to]; a[to]=t; renderSubs(); };
   box.querySelectorAll('[data-sd]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.sd; draft.subs[i].done=!draft.subs[i].done; renderSubs(); });
   box.querySelectorAll('[data-st]').forEach(inp=> inp.oninput=()=>{ draft.subs[+inp.dataset.st].t=inp.value; });
+  box.querySelectorAll('[data-su]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.su; move(i,i-1); });
+  box.querySelectorAll('[data-sdn]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.sdn; move(i,i+1); });
   box.querySelectorAll('[data-sx]').forEach(b=> b.onclick=()=>{ draft.subs.splice(+b.dataset.sx,1); renderSubs(); });
 }
 function addSub(){
@@ -913,6 +932,12 @@ document.getElementById('list').addEventListener('click',e=>{
     const [tid,sid]=sub.dataset.subtoggle.split('|');
     const t=tasks.find(x=>x.id===tid);
     if(t && t.subs){ const s=t.subs.find(x=>x.id===sid); if(s){ s.done=!s.done; save(); render(); } }
+    return;
+  }
+  const col=e.target.closest('[data-collapse]');
+  if(col){
+    const t=tasks.find(x=>x.id===col.dataset.collapse);
+    if(t){ t.collapsed=!t.collapsed; save(); render(); }
     return;
   }
   const del=e.target.closest('[data-del]');

@@ -162,11 +162,10 @@
   .subchk.on{background:var(--sage);border-color:var(--sage);}
   .subin{flex:1;border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;
     padding:8px 10px;font-family:inherit;font-size:14px;outline:none;min-width:0;}
-  .submv{display:flex;flex-direction:column;gap:2px;flex:none;}
-  .submv button{border:1px solid var(--line);background:var(--white);color:var(--ink);width:24px;height:15px;
-    border-radius:6px;font-size:10px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;}
-  .submv button:disabled{opacity:.3;cursor:default;}
-  .submv button:active:not(:disabled){background:var(--paper-2);}
+  .subdrag{border:none;background:transparent;color:var(--ink-soft);cursor:grab;font-size:16px;line-height:1;
+    padding:4px 2px;flex:none;touch-action:none;}
+  .subdrag:active{cursor:grabbing;}
+  .subedit.dragging{opacity:.65;background:var(--paper-2);border-radius:10px;}
   .subx{border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:15px;padding:4px 6px;flex:none;}
 
   /* ----- sheet (éditeur + réglages) ----- */
@@ -544,7 +543,7 @@ function taskHTML(t){
   if(t.repeat) meta+=`<span class="tag rep">🔁 ${repeatLabel(t.repeat)}</span>`;
   const subs = t.subs||[];
   const collapsed = !!t.collapsed;
-  if(subs.length) meta+=`<span class="tag subcount" data-collapse="${t.id}">☑ ${subs.filter(s=>s.done).length}/${subs.length} <span class="cc">${collapsed?'▸':'▾'}</span></span>`;
+  const subToggle = subs.length ? `<span class="tag subcount" data-collapse="${t.id}">☑ ${subs.filter(s=>s.done).length}/${subs.length} <span class="cc">${collapsed?'▸':'▾'}</span></span>` : '';
   if(settings.showCreated) meta+=`<span class="added">${fmtAdded(t.created)}</span>`;
   const pr = settings.showPrio && t.prio ? PRIOS.find(p=>p.v===t.prio) : null;
   // catégorie au bout du nom
@@ -562,7 +561,7 @@ function taskHTML(t){
     <button class="chk ${t.done?'done':''}" data-chk="${t.id}">${t.done?'✓':''}</button>
     ${pr?`<span class="prio-dot" style="background:${pr.c}" title="Priorité ${pr.nm.toLowerCase()}"></span>`:''}
     <div class="tbody" data-edit="${t.id}">
-      <div class="titlerow"><span class="ttitle">${esc(t.title)}</span>${catPill}</div>
+      <div class="titlerow"><span class="ttitle">${esc(t.title)}</span>${catPill}${subToggle}</div>
       ${settings.showDesc && t.desc?`<div class="tdesc">${esc(t.desc)}</div>`:''}
       ${meta?`<div class="meta">${meta}</div>`:''}
       ${subsHTML}
@@ -721,7 +720,7 @@ function openEdit(id){
   if(!settings.dueTime && dv.includes('T')) dv=dv.slice(0,10);
   dueEl.value=dv;
   renderEditFields(); renderSubs();
-  showSheet('edit');
+  presentSheet('edit');
 }
 function renderEditFields(){
   const box=document.getElementById('e-cats');
@@ -738,22 +737,49 @@ function renderEditFields(){
 }
 function renderSubs(){
   const box=document.getElementById('e-subs');
-  const last=draft.subs.length-1;
-  box.innerHTML = draft.subs.map((s,i)=>`<div class="subedit">
+  box.innerHTML = draft.subs.map((s,i)=>`<div class="subedit" data-row="${i}">
+      <button class="subdrag" data-drag="${i}" title="Glisser pour déplacer">⠿</button>
       <button class="subchk ${s.done?'on':''}" data-sd="${i}">${s.done?'✓':''}</button>
       <input class="subin" data-st="${i}" value="${esc(s.t)}" placeholder="Sous-tâche">
-      <div class="submv">
-        <button data-su="${i}" ${i===0?'disabled':''}>↑</button>
-        <button data-sdn="${i}" ${i===last?'disabled':''}>↓</button>
-      </div>
       <button class="subx" data-sx="${i}">✕</button>
     </div>`).join('');
-  const move=(from,to)=>{ if(to<0||to>=draft.subs.length) return; const a=draft.subs; const t=a[from]; a[from]=a[to]; a[to]=t; renderSubs(); };
   box.querySelectorAll('[data-sd]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.sd; draft.subs[i].done=!draft.subs[i].done; renderSubs(); });
   box.querySelectorAll('[data-st]').forEach(inp=> inp.oninput=()=>{ draft.subs[+inp.dataset.st].t=inp.value; });
-  box.querySelectorAll('[data-su]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.su; move(i,i-1); });
-  box.querySelectorAll('[data-sdn]').forEach(b=> b.onclick=()=>{ const i=+b.dataset.sdn; move(i,i+1); });
   box.querySelectorAll('[data-sx]').forEach(b=> b.onclick=()=>{ draft.subs.splice(+b.dataset.sx,1); renderSubs(); });
+  box.querySelectorAll('[data-drag]').forEach(h=> h.addEventListener('pointerdown', startSubDrag));
+  if(dragFrom!=null) markDragging();
+}
+let dragFrom=null;
+function markDragging(){ const r=document.querySelector(`#e-subs .subedit[data-row="${dragFrom}"]`); if(r) r.classList.add('dragging'); }
+function startSubDrag(e){
+  e.preventDefault();
+  dragFrom=+e.currentTarget.dataset.drag;
+  document.body.style.userSelect='none';
+  markDragging();
+  window.addEventListener('pointermove', onSubDragMove);
+  window.addEventListener('pointerup', endSubDrag, {once:true});
+  window.addEventListener('pointercancel', endSubDrag, {once:true});
+}
+function onSubDragMove(e){
+  if(dragFrom==null) return;
+  const rows=[...document.querySelectorAll('#e-subs .subedit')];
+  if(!rows.length) return;
+  let to=rows.length;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i].getBoundingClientRect();
+    if(e.clientY < r.top + r.height/2){ to=i; break; }
+  }
+  if(to>dragFrom) to--;                 // compense le retrait de l'élément déplacé
+  to=Math.max(0,Math.min(draft.subs.length-1,to));
+  if(to!==dragFrom){
+    const a=draft.subs; const item=a.splice(dragFrom,1)[0]; a.splice(to,0,item);
+    dragFrom=to; renderSubs();
+  }
+}
+function endSubDrag(){
+  window.removeEventListener('pointermove', onSubDragMove);
+  document.body.style.userSelect='';
+  dragFrom=null; renderSubs();
 }
 function addSub(){
   const inp=document.getElementById('e-sub-new');
@@ -771,7 +797,7 @@ function saveEdit(){
   t.cat=draft.cat; t.prio=settings.showPrio?draft.prio:t.prio;
   t.repeat=draft.repeat||null;
   t.subs=draft.subs.filter(s=>s.t.trim()).map(s=>({id:s.id,t:s.t.trim(),done:!!s.done}));
-  save(); hideSheet('edit'); render(); toast('Modifiée');
+  save(); closeOverlay(); render(); toast('Modifiée');
 }
 
 /* =========================================================
@@ -873,6 +899,17 @@ function hideSheet(which){
   const sh=document.getElementById('sheet-'+(which==='edit'?'edit':'set'));
   sh.classList.remove('show'); bd.classList.remove('show');
 }
+
+/* ---- pile d'overlays branchée sur l'historique (geste retour / bouton retour) ---- */
+const overlays=[];
+let ignorePop=0;
+function openOverlay(hideFn){ overlays.push(hideFn); try{ history.pushState({tov:overlays.length},''); }catch(e){} }
+function closeOverlay(){ if(!overlays.length) return; const hide=overlays.pop(); ignorePop++; try{ history.back(); }catch(e){ ignorePop--; } hide(); }
+window.addEventListener('popstate', ()=>{
+  if(ignorePop>0){ ignorePop--; return; }
+  if(overlays.length){ const hide=overlays.pop(); hide(); }
+});
+function presentSheet(which){ showSheet(which); openOverlay(()=>hideSheet(which)); }
 let toastT;
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
   clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),1800); }
@@ -884,20 +921,22 @@ function askConfirm(msg, onYes, okLabel='Supprimer'){
   document.getElementById('dlg-msg').textContent=msg;
   document.getElementById('dlg-in').style.display='none';
   const ok=document.getElementById('dlg-ok'); ok.textContent=okLabel; ok.className='btn dangerfill';
-  dlgCb=()=>{ closeDlg(); onYes(); };
+  dlgCb=()=>{ closeOverlay(); onYes(); };
   document.getElementById('dlg-bd').classList.add('show'); document.getElementById('dlg').classList.add('show');
+  openOverlay(closeDlg);
 }
 function askPrompt(msg, value, onOk){
   document.getElementById('dlg-msg').textContent=msg;
   const inEl=document.getElementById('dlg-in'); inEl.style.display='block'; inEl.value=value||'';
   const ok=document.getElementById('dlg-ok'); ok.textContent='Enregistrer'; ok.className='btn primary';
-  dlgCb=()=>{ const v=inEl.value.trim(); if(!v) return; closeDlg(); onOk(v); };
+  dlgCb=()=>{ const v=inEl.value.trim(); if(!v) return; closeOverlay(); onOk(v); };
   document.getElementById('dlg-bd').classList.add('show'); document.getElementById('dlg').classList.add('show');
+  openOverlay(closeDlg);
   setTimeout(()=>{ inEl.focus(); inEl.select(); },60);
 }
 document.getElementById('dlg-ok').onclick=()=>{ if(dlgCb) dlgCb(); };
-document.getElementById('dlg-cancel').onclick=closeDlg;
-document.getElementById('dlg-bd').onclick=closeDlg;
+document.getElementById('dlg-cancel').onclick=()=>closeOverlay();
+document.getElementById('dlg-bd').onclick=()=>closeOverlay();
 document.getElementById('dlg-in').addEventListener('keydown',e=>{ if(e.key==='Enter'&&dlgCb) dlgCb(); });
 
 /* =========================================================
@@ -954,14 +993,14 @@ document.getElementById('f-cat').onchange=e=>{ settings.filterCat=e.target.value
 
 // éditeur
 document.getElementById('e-save').onclick=saveEdit;
-document.getElementById('e-del').onclick=()=>{ askConfirm('Supprimer cette tâche ?', ()=>{ tasks=tasks.filter(x=>x.id!==editId); save(); hideSheet('edit'); render(); toast('Supprimée'); }); };
-document.getElementById('bd-edit').onclick=()=>hideSheet('edit');
+document.getElementById('e-del').onclick=()=>{ askConfirm('Supprimer cette tâche ?', ()=>{ tasks=tasks.filter(x=>x.id!==editId); save(); closeOverlay(); render(); toast('Supprimée'); }); };
+document.getElementById('bd-edit').onclick=()=>closeOverlay();
 document.getElementById('e-sub-add').onclick=addSub;
 document.getElementById('e-sub-new').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addSub(); } });
 
 // réglages
-document.getElementById('btn-settings').onclick=()=>showSheet('set');
-document.getElementById('bd-set').onclick=()=>hideSheet('set');
+document.getElementById('btn-settings').onclick=()=>presentSheet('set');
+document.getElementById('bd-set').onclick=()=>closeOverlay();
 document.getElementById('set-clear').onclick=()=>{
   const n=tasks.filter(t=>t.done).length; if(!n){ toast('Aucune tâche terminée'); return; }
   askConfirm('Effacer les '+n+' tâche'+(n>1?'s':'')+' terminée'+(n>1?'s':'')+' ?', ()=>{

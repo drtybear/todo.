@@ -95,14 +95,15 @@
   .sw.on{border-color:var(--ink);}
 
   /* ----- barre filtres ----- */
-  .filters{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
-  select.sel{border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;
-    padding:6px 23px 6px 9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;outline:none;
+  .filters{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:nowrap;}
+  select.sel{flex:1 1 0;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;
+    border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;
+    padding:6px 20px 6px 8px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;outline:none;
     -webkit-appearance:none;appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%235c574c' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;background-position:right 7px center;}
-  .pillbtn{border:1px solid var(--line);background:var(--white);color:var(--ink-soft);border-radius:10px;
-    padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%235c574c' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 6px center;}
+  .pillbtn{flex:none;border:1px solid var(--line);background:var(--white);color:var(--ink-soft);border-radius:10px;
+    padding:6px 9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
   .pillbtn.on{background:var(--sage-soft);border-color:transparent;color:var(--sage-deep);}
   .fnote{font-size:12px;color:var(--ink-soft);margin:2px 2px 12px;}
 
@@ -121,7 +122,7 @@
   .ttitle{font-weight:600;font-size:15.5px;word-break:break-word;}
   .task.done .ttitle{text-decoration:line-through;color:var(--ink-soft);}
   .catpill{flex:none;}
-  .subcount{cursor:pointer;}
+  .subcount{cursor:pointer;margin-left:auto;}
   .subcount .cc{font-size:10px;opacity:.8;margin-left:1px;}
   .tdesc{font-size:13.5px;color:var(--ink-soft);margin-top:2px;word-break:break-word;white-space:pre-wrap;}
   .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px;}
@@ -181,6 +182,8 @@
   .sheet h2{font-family:'Fraunces',serif;font-weight:500;font-size:22px;margin:6px 2px 14px;letter-spacing:-.01em;}
   .sheet .fld input.titlein{width:100%;border:1px solid var(--line);background:var(--white);color:var(--ink);
     border-radius:12px;padding:11px 13px;font-family:inherit;font-size:16px;outline:none;}
+  #e-desc{width:100%;border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:12px;
+    padding:12px 13px;font-family:inherit;font-size:15px;line-height:1.45;resize:vertical;min-height:140px;outline:none;}
   .sheet-actions{display:flex;gap:10px;margin-top:20px;}
   .btn{flex:1;border:none;border-radius:13px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
   .btn.primary{background:var(--sage);color:#fff;}
@@ -250,7 +253,7 @@
       <button class="plus" id="q-add">+</button>
     </div>
     <div class="more" id="q-more">
-      <div class="fld" data-feat="desc">
+      <div class="fld">
         <label>Description</label>
         <textarea id="q-desc" placeholder="Optionnel…"></textarea>
       </div>
@@ -281,19 +284,19 @@
   <!-- filtres -->
   <div class="filters">
     <select class="sel" id="f-sort">
-      <option value="created">Plus récentes</option>
-      <option value="created_old">Plus anciennes</option>
-      <option value="due">Par échéance</option>
-      <option value="prio">Par priorité</option>
-      <option value="alpha">Alphabétique</option>
+      <option value="created">Récentes</option>
+      <option value="created_old">Anciennes</option>
+      <option value="due">Échéance</option>
+      <option value="prio">Priorité</option>
+      <option value="alpha">A–Z</option>
     </select>
     <select class="sel" id="f-group">
-      <option value="none">Sans regroupement</option>
-      <option value="cat">Par catégorie</option>
-      <option value="due">Par échéance</option>
+      <option value="none">Sans groupe</option>
+      <option value="cat">Catégorie</option>
+      <option value="due">Échéance</option>
     </select>
-    <button class="pillbtn" id="f-done">Terminées</button>
     <select class="sel" id="f-cat"></select>
+    <button class="pillbtn" id="f-done">Faites</button>
   </div>
   <div class="fnote" id="f-note"></div>
 
@@ -306,7 +309,7 @@
   <div class="grab"></div>
   <h2 id="edit-title">Modifier la tâche</h2>
   <div class="fld"><label>Titre</label><input class="titlein" id="e-title" autocomplete="off"></div>
-  <div class="fld" data-feat="desc"><label>Description</label><textarea id="e-desc" placeholder="Optionnel…"></textarea></div>
+  <div class="fld"><label>Description</label><textarea id="e-desc" placeholder="Optionnel…"></textarea></div>
   <div class="fld" data-feat="due"><label>Échéance</label><input type="date" class="date-in" id="e-due"></div>
   <div class="fld">
     <label>Catégorie</label>
@@ -362,7 +365,7 @@
 
   <div class="setsec">Champs des tâches</div>
   <div class="setrow">
-    <div class="lbl"><div class="t">Descriptions</div><div class="d">Champ de texte libre</div></div>
+    <div class="lbl"><div class="t">Descriptions dans la liste</div><div class="d">Les afficher sous le titre des tâches</div></div>
     <button class="toggle" data-set="showDesc"></button>
   </div>
   <div class="setrow">
@@ -424,10 +427,12 @@ const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 const PALETTE = [
-  {s:'#3f5d49'}, /* sauge */    {s:'#5d6e44'}, /* olive */     {s:'#7a8b3c'}, /* vert tilleul */
-  {s:'#b4842c'}, /* miel */     {s:'#c47f2e'}, /* ambre */     {s:'#b8694a'}, /* argile */
-  {s:'#a8484a'}, /* brique */   {s:'#9c4f6b'}, /* framboise */ {s:'#8a5a7a'}, /* prune */
-  {s:'#5b5e8d'}, /* nuit */     {s:'#4a7a86'}, /* canard */    {s:'#3f7d6e'}  /* sapin */
+  {s:'#3f5d49'}, /* sauge */    {s:'#5d6e44'}, /* olive */     {s:'#7a8b3c'}, /* tilleul */
+  {s:'#2f8f5b'}, /* émeraude */ {s:'#b4842c'}, /* miel */      {s:'#c47f2e'}, /* ambre */
+  {s:'#d08a1e'}, /* or */       {s:'#b8694a'}, /* argile */    {s:'#a05334'}, /* terre */
+  {s:'#c0392b'}, /* rouge */    {s:'#a8484a'}, /* brique */    {s:'#9c4f6b'}, /* framboise */
+  {s:'#8a5a7a'}, /* prune */    {s:'#7a5aa8'}, /* violet */    {s:'#5b5e8d'}, /* indigo */
+  {s:'#3b6ea5'}, /* bleu */     {s:'#4a7a86'}, /* canard */    {s:'#6b7280'}  /* ardoise */
 ];
 const PRIOS = [ {v:1,nm:'Basse',c:'#6f977f'},{v:2,nm:'Normale',c:'#c2902f'},{v:3,nm:'Haute',c:'#b0432f'} ];
 
@@ -502,14 +507,13 @@ function applyTheme(){ document.documentElement.setAttribute('data-theme', setti
   document.querySelector('meta[name=theme-color]').setAttribute('content', settings.dark?'#191712':'#f4f1ea'); }
 
 function applyFeatureVisibility(){
-  document.querySelectorAll('[data-feat="desc"]').forEach(e=>e.style.display=settings.showDesc?'':'none');
   document.querySelectorAll('[data-feat="due"]').forEach(e=>e.style.display=settings.dueEnabled?'':'none');
   document.querySelectorAll('[data-feat="prio"]').forEach(e=>e.style.display=settings.showPrio?'':'none');
 }
 
 function renderCatFilter(){
   const sel=document.getElementById('f-cat');
-  let html='<option value="all">Toutes catégories</option><option value="none">Sans catégorie</option>';
+  let html='<option value="all">Toutes</option><option value="none">Sans cat.</option>';
   cats.forEach(c=> html+=`<option value="${c.id}">${esc(c.name)}</option>`);
   sel.innerHTML=html; sel.value=settings.filterCat;
 }

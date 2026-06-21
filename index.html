@@ -412,6 +412,7 @@
   <div class="sheet-actions" style="margin-top:24px">
     <button class="btn ghost" id="set-clear">Ranger les terminées</button>
   </div>
+  <div style="text-align:center;color:var(--ink-soft);font-size:11.5px;margin-top:18px;opacity:.7">t<span style="color:var(--clay)">.</span> · version <span id="app-version"></span></div>
 </div>
 
 <!-- boîte de dialogue -->
@@ -1115,6 +1116,8 @@ setupNewCat('e', cat=>{ draft.cat=cat.id; document.getElementById('e-newcat').st
 setupNewCat('set', cat=>{ renderSettings(); renderCatFilter(); renderQuickFields(); render(); toast('Catégorie créée'); });
 
 /* ---------- démarrage ---------- */
+const APP_VERSION='t-v5';
+document.getElementById('app-version').textContent=APP_VERSION;
 document.getElementById('f-sort').value=settings.sort;
 document.getElementById('f-group').value=settings.groupBy;
 document.getElementById('f-done').classList.toggle('on',settings.showDone);
@@ -1124,9 +1127,19 @@ renderCatFilter();
 renderQuickFields();
 render();
 
-// service worker (mode installable + rappels programmés)
+// service worker (mode installable + rappels programmés + mises à jour)
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(()=>refreshReminders()).catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    refreshReminders();
+    try{ reg.update(); }catch(e){}
+  }).catch(()=>{});
+  let swReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(swReloaded) return; swReloaded=true; location.reload();
+  });
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) navigator.serviceWorker.getRegistration().then(r=>{ try{ r&&r.update(); }catch(e){} }).catch(()=>{});
+  });
 }
 refreshReminders();
 setInterval(foregroundSweep, 60000);        // vérifie les échéances chaque minute si ouverte

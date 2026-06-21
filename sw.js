@@ -1,4 +1,4 @@
-const CACHE = 't-v4';
+const CACHE = 't-v5';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -7,18 +7,42 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
-  self.clients.claim();
+  e.waitUntil(
+    caches.keys()
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  const isNav = req.mode === 'navigate' || req.destination === 'document';
+
+  if (isNav) {
+    // Réseau d'abord : on récupère toujours la dernière version en ligne,
+    // le cache ne sert que de secours hors-ligne.
+    e.respondWith(
+      fetch(req).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
+        return resp;
+      }).catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+    );
+    return;
+  }
+
+  // Autres ressources (icônes, manifeste) : cache d'abord, rafraîchi en arrière-plan.
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      const copy = resp.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
-      return resp;
-    }).catch(() => caches.match('./index.html')))
+    caches.match(req).then(cached => {
+      const net = fetch(req).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return resp;
+      }).catch(() => cached);
+      return cached || net;
+    })
   );
 });
 
